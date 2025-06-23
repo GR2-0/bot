@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import * as dotenv from 'dotenv';
 import { UserStore } from './userStore';
+import { MeetupStore } from './meetupStore';
 
 dotenv.config();
 
@@ -8,10 +9,26 @@ const bot = new Telegraf(process.env.BOT_TOKEN!);
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 const store = new UserStore();
+const meetups = new MeetupStore();
 
 bot.start((ctx) => {
   const { id, username, first_name } = ctx.from;
+  const args = ctx.message.text.split(' ');
+  const meetupId = args[1];
+
   store.addUser({ id, username, name: first_name });
+
+  if (meetupId) {
+    const m = meetups.get(meetupId);
+    if (m && m.active) {
+      store.addPoints(id, m.points);
+    } else if (m && !m.active) {
+      return ctx.reply(`Митап "${m.name}" пока не активен 🚧`);
+    } else {
+      return ctx.reply(`Неверная ссылка. Митап не найден ❌`);
+    }
+  }
+
   return sendMainMenu(ctx);
 });
 

@@ -2,12 +2,14 @@ import { Telegraf, Markup } from 'telegraf';
 import * as dotenv from 'dotenv';
 import { UserStore } from './userStore';
 import { MeetupStore } from './meetupStore';
+import { PointEventStore } from './pointEventStore';
 
 dotenv.config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN!);
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 
+const pointEvents = new PointEventStore();
 const store = new UserStore();
 const meetups = new MeetupStore();
 
@@ -20,13 +22,24 @@ bot.start((ctx) => {
 
   if (meetupId) {
     const m = meetups.get(meetupId);
-    if (m && m.active) {
-      store.addPoints(id, m.points);
-    } else if (m && !m.active) {
-      return ctx.reply(`Митап "${m.name}" пока не активен 🚧`);
-    } else {
-      return ctx.reply(`Неверная ссылка. Митап не найден ❌`);
+    if (!m) return ctx.reply(`Митап не найден ❌`);
+    if (!m.active) return ctx.reply(`Митап "${m.name}" пока не активен 🚧`);
+
+    const alreadyClaimed = pointEvents.hasEvent(id, 'meetup_attendance', meetupId);
+    if (alreadyClaimed) {
+      return ctx.reply(`Ты уже получил поинты за митап "${m.name}" 😉`);
     }
+
+    // начисляем
+    pointEvents.add({
+      userId: id,
+      type: 'meetup_attendance',
+      meetupId,
+      points: m.points,
+      timestamp: new Date().toISOString()
+    });
+
+    ctx.reply(`🎉 Ты получил ${m.points} поинтов за участие в "${m.name}"`);
   }
 
   return sendMainMenu(ctx);
@@ -35,13 +48,11 @@ bot.start((ctx) => {
 async function sendMainMenu(ctxOrCallback: any) {
   const id = ctxOrCallback.from.id;
   const name = ctxOrCallback.from.first_name;
-  const points = store.getPoints(id);
+  const points = pointEvents.getUserPoints(id);
 
   const text = `Привет, ${name}!\n\n🎯 Твои поинты: ${points}`;
 
   const buttons = [
-    [Markup.button.callback('🎁 Получить поинт', 'get_point')],
-    [Markup.button.callback('📊 Топ участников', 'show_top')],
     [Markup.button.callback('🔁 Обновить', 'refresh')],
   ];
 
@@ -52,23 +63,8 @@ async function sendMainMenu(ctxOrCallback: any) {
   await ctxOrCallback.reply(text, Markup.inlineKeyboard(buttons));
 }
 
-bot.action('get_point', async (ctx) => {
-  store.addPoints(ctx.from.id, 1);
-  await sendMainMenu(ctx);
-});
-
 bot.action('refresh', async (ctx) => {
   await sendMainMenu(ctx);
-});
-
-bot.action('show_top', async (ctx) => {
-  const top = store.getTopUsers();
-  const text = `📊 Топ участников:\n\n` +
-    top.map((u, i) => `${i + 1}. ${u.name} (${u.username ?? 'без ника'}): ${u.points} pts`).join('\n');
-
-  await ctx.reply(text, Markup.inlineKeyboard([
-    [Markup.button.callback('⬅️ Назад', 'refresh')],
-  ]));
 });
 
 bot.launch();

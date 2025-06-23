@@ -7,7 +7,6 @@ interface UserData {
   id: number;
   username?: string;
   name: string;
-  points: number;
 }
 
 export class UserStore {
@@ -37,25 +36,8 @@ export class UserStore {
         id,
         username,
         name,
-        points: 0,
       };
       this.save();
     }
-  }
-
-  addPoints(id: number, amount = 1) {
-    if (!this.users[id]) return;
-    this.users[id].points += amount;
-    this.save();
-  }
-
-  getPoints(id: number): number {
-    return this.users[id]?.points ?? 0;
-  }
-
-  getTopUsers(limit = 5): UserData[] {
-    return Object.values(this.users)
-      .sort((a, b) => b.points - a.points)
-      .slice(0, limit);
   }
 }

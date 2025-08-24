@@ -2,7 +2,7 @@
 Модуль для управления системой поинтов
 """
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -14,6 +14,7 @@ class PointsManager:
         self.points_file = Path(points_file)
         self.points = {}
         self.transactions = {}
+        self.moscow_tz = timezone(timedelta(hours=3))  # UTC+3 для Москвы
         self.load_points()
 
     def load_points(self):
@@ -41,7 +42,7 @@ class PointsManager:
             data = {
                 'points': self.points,
                 'transactions': self.transactions,
-                'last_updated': datetime.now().isoformat()
+                'last_updated': self.get_moscow_datetime()
             }
             with open(self.points_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -66,14 +67,14 @@ class PointsManager:
         self.points[user_id] = new_points
 
         # Записываем транзакцию
-        transaction_id = f"{user_id}_{datetime.now().timestamp()}"
+        transaction_id = f"{user_id}_{self.get_moscow_time().timestamp()}"
         self.transactions[transaction_id] = {
             'user_id': user_id,
             'type': 'add',
             'amount': amount,
             'action': action,
             'reason': f"Награда за {action}",
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': self.get_moscow_datetime(),
             'balance_before': current_points,
             'balance_after': new_points
         }
@@ -94,14 +95,14 @@ class PointsManager:
         self.points[user_id] = new_points
 
         # Записываем транзакцию
-        transaction_id = f"{user_id}_{datetime.now().timestamp()}"
+        transaction_id = f"{user_id}_{self.get_moscow_time().timestamp()}"
         self.transactions[transaction_id] = {
             'user_id': user_id,
             'type': 'remove',
             'amount': amount,
             'action': action,
             'reason': f"Списание за {action}",
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': self.get_moscow_datetime(),
             'balance_before': current_points,
             'balance_after': new_points
         }

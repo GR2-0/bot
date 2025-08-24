@@ -244,6 +244,30 @@ class GR2Bot:
 
         await update.message.reply_text(stats_text)
 
+    async def users_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /users (только для админов)"""
+        user_id = str(update.effective_user.id)
+
+        if not self.user_manager.is_admin(user_id):
+            await update.message.reply_text(
+                message_manager.get_error_message("permission_denied")
+            )
+            return
+
+        # Получаем всех пользователей
+        users = self.user_manager.get_all_users()
+
+        if not users:
+            await update.message.reply_text("📝 Пользователи не найдены")
+            return
+
+        users_text = "👥 Список пользователей:\n\n"
+
+        for user in users:
+            users_text += f"👤 {user.get('name', 'Не указано')} - {user.get('role', 'user')}\n"
+
+        await update.message.reply_text(users_text)
+
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик нажатий на inline кнопки"""
         query = update.callback_query
@@ -324,6 +348,8 @@ class GR2Bot:
             CommandHandler("admin", self.admin_command))
         self.application.add_handler(
             CommandHandler("stats", self.stats_command))
+        self.application.add_handler(
+            CommandHandler("users", self.users_command))
 
         # Обработчики кнопок
         self.application.add_handler(

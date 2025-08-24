@@ -1,3 +1,5 @@
 - [x] Check gitignore (venv, private)
 - [x] Check requirements.txt
 - [x] Commmit
+- [ ] Админское меню (/admin) не наполнено функционалом (только отображает кнопки действий)
+- [ ] 

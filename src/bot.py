@@ -49,6 +49,8 @@ class GR2Bot:
         user_id = str(update.effective_user.id)
         username = update.effective_user.username or update.effective_user.first_name
 
+        print(f"DEBUG: Start command from user {user_id} ({username})")
+
         # Проверяем, зарегистрирован ли пользователь
         if self.user_manager.user_exists(user_id):
             await update.message.reply_text(
@@ -101,15 +103,19 @@ class GR2Bot:
             'name': name,
             'info': info,
             'registration_date': datetime.now().strftime('%Y-%m-%d'),
-            'role': 'user',
-            'points': 0
+            'role': 'user'
         }
 
         self.user_manager.create_user(user_data)
 
         # Начисляем поинты за регистрацию
         points = config.get_points_for_action("registration")
-        self.points_manager.add_points(user_id, points)
+        print(f"DEBUG: Registration points from config: {points}")
+        print(f"DEBUG: Adding points to user {user_id}")
+        self.points_manager.add_points(user_id, points, "registration")
+        current_points = self.points_manager.get_user_points(user_id)
+        print(f"DEBUG: Points added, checking current points: "
+              f"{current_points}")
 
         await update.message.reply_text(
             message_manager.get_registration_message("success")
@@ -137,6 +143,10 @@ class GR2Bot:
 
         user = self.user_manager.get_user(user_id)
         points = self.points_manager.get_user_points(user_id)
+
+        print(f"DEBUG: Profile command for user {user_id}")
+        print(f"DEBUG: User data: {user}")
+        print(f"DEBUG: Points from PointsManager: {points}")
 
         profile_text = f"👤 Профиль\n\n"
         profile_text += f"Имя: {user.get('name', 'Не указано')}\n"
@@ -300,8 +310,7 @@ class GR2Bot:
 
     def setup_handlers(self):
         """Настраивает обработчики команд и сообщений"""
-        # Основные команды
-        self.application.add_handler(CommandHandler("start", self.start))
+        # Основные команды (start handled by ConversationHandler)
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(
             CommandHandler("profile", self.profile_command))
@@ -347,6 +356,9 @@ class GR2Bot:
             # Создаём приложение
             self.application = Application.builder().token(
                 config.get_bot_token()).build()
+
+            # Инициализируем GroupChecker с токеном бота
+            await self.group_checker.initialize_bot(config.get_bot_token())
 
             # Настраиваем обработчики
             self.setup_handlers()

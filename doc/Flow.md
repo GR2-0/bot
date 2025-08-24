@@ -1,0 +1,3 @@
+- [x] Check gitignore (venv, private)
+- [x] Check requirements.txt
+- [x] Commmit

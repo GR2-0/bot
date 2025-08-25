@@ -3,7 +3,6 @@
 """
 import json
 from pathlib import Path
-from typing import Dict, Any
 
 
 class MessageManager:
@@ -94,15 +93,15 @@ class MessageManager:
         help_text += "🔄 QR-регистрация:\n"
         help_text += "/qr_start - Запустить QR-регистрацию\n"
         help_text += "/qr_stop - Остановить QR-регистрацию\n"
-        help_text += "/qr_status - Статус QR-регистраций\n"
-        help_text += "/debug_meetups - Отладочная информация о митапах\n\n"
+        help_text += "/qr_status - Статус QR-регистраций\n\n"
 
         help_text += "👥 Управление пользователями:\n"
         help_text += "/users - Список пользователей\n"
         help_text += "/admin - Управление администраторами\n"
         help_text += "/stats - Статистика коммьюнити\n\n"
 
-        help_text += "ℹ️ Для получения подробной информации о команде используйте /help <команда>"
+        help_text += "ℹ️ Для получения подробной информации о команде "
+        help_text += "используйте /help <команда>"
 
         return help_text
 
@@ -117,9 +116,11 @@ class MessageManager:
 
         help_text += "🎯 Митапы:\n"
         help_text += "Для регистрации на митап отсканируйте QR-код, "
-        help_text += "предоставленный администратором, и отправьте хеш боту\n\n"
+        help_text += "предоставленный администратором, и отправьте хеш "
+        help_text += "боту\n\n"
 
-        help_text += "ℹ️ Для получения подробной информации о команде используйте /help <команда>"
+        help_text += "ℹ️ Для получения подробной информации о команде "
+        help_text += "используйте /help <команда>"
 
         return help_text
 

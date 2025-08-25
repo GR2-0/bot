@@ -430,55 +430,6 @@ class GR2Bot:
 
         await update.message.reply_text(status_text)
 
-    async def debug_meetups_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обработчик команды /debug_meetups (только для админов)"""
-        user_id = str(update.effective_user.id)
-
-        if not self.user_manager.is_admin(user_id):
-            await update.message.reply_text(
-                message_manager.get_error_message("permission_denied")
-            )
-            return
-
-        # Обновляем статусы митапов
-        self.meetup_manager.update_meetup_statuses()
-
-        # Получаем все митапы
-        all_meetups = self.meetup_manager.meetups
-        moscow_now = self.meetup_manager.get_moscow_time()
-
-        debug_text = "🔍 Отладочная информация о митапах:\n\n"
-        debug_text += f"⏰ Текущее время (Москва): {moscow_now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-
-        if not all_meetups:
-            debug_text += "❌ Митапы не найдены"
-        else:
-            for meetup_id, meetup in all_meetups.items():
-                debug_text += f"🎯 {meetup.get('name', 'Без названия')}\n"
-                debug_text += f"   ID: {meetup_id}\n"
-                debug_text += f"   Статус: {meetup.get('status', 'Не указан')}\n"
-                debug_text += f"   Дата: {meetup.get('date', 'Не указана')}\n"
-                debug_text += f"   Время: {meetup.get('start_time', 'Не указано')} - {meetup.get('end_time', 'Не указано')}\n"
-
-                # Проверяем время митапа
-                try:
-                    if meetup.get('date') and meetup.get('start_time'):
-                        meetup_date = datetime.strptime(
-                            meetup['date'], '%Y-%m-%d').date()
-                        start_time = datetime.strptime(
-                            meetup['start_time'], '%H:%M').time()
-                        meetup_start = datetime.combine(
-                            meetup_date, start_time, tzinfo=self.meetup_manager.moscow_tz)
-
-                        debug_text += f"   Время начала (Москва): {meetup_start.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                        debug_text += f"   Статус должен быть: {'active' if meetup_start <= moscow_now else 'planned'}\n"
-                except Exception as e:
-                    debug_text += f"   Ошибка проверки времени: {e}\n"
-
-                debug_text += "\n"
-
-        await update.message.reply_text(debug_text)
-
     async def users_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /users (только для админов)"""
         user_id = str(update.effective_user.id)
@@ -987,8 +938,6 @@ class GR2Bot:
             CommandHandler("qr_stop", self.qr_stop_command))
         self.application.add_handler(
             CommandHandler("qr_status", self.qr_status_command))
-        self.application.add_handler(
-            CommandHandler("debug_meetups", self.debug_meetups_command))
 
         # Обработчики кнопок
         self.application.add_handler(

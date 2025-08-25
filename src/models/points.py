@@ -17,6 +17,14 @@ class PointsManager:
         self.moscow_tz = timezone(timedelta(hours=3))  # UTC+3 для Москвы
         self.load_points()
 
+    def get_moscow_time(self) -> datetime:
+        """Возвращает текущее время в московском часовом поясе"""
+        return datetime.now(self.moscow_tz)
+
+    def get_moscow_datetime(self) -> str:
+        """Возвращает текущее время в московском часовом поясе в ISO формате"""
+        return self.get_moscow_time().isoformat()
+
     def load_points(self):
         """Загружает данные о поинтах из файла"""
         try:

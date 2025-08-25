@@ -18,6 +18,7 @@ from models.meetup import MeetupManager
 from models.points import PointsManager
 from utils.qr_generator import QRCodeGenerator
 from utils.group_checker import GroupChecker
+from utils.qr_registration import QRRegistrationManager
 
 # Настройка логирования
 logging.basicConfig(
@@ -46,6 +47,12 @@ class GR2Bot:
         self.points_manager = PointsManager()
         self.qr_generator = QRCodeGenerator()
         self.group_checker = GroupChecker()
+        # Используем тот же экземпляр meetup_manager
+        self.qr_registration = QRRegistrationManager()
+        # Передаём существующий meetup_manager в QR registration manager
+        self.qr_registration.meetup_manager = self.meetup_manager
+        # Передаём существующий points_manager в QR registration manager
+        self.qr_registration.points_manager = self.points_manager
 
     def get_moscow_time(self) -> datetime:
         """Возвращает текущее время в московском часовом поясе"""
@@ -61,6 +68,16 @@ class GR2Bot:
         username = update.effective_user.username or update.effective_user.first_name
 
         print(f"DEBUG: Start command from user {user_id} ({username})")
+
+        # Проверяем, есть ли параметры в команде start
+        if context.args and len(context.args) > 0:
+            start_param = context.args[0]
+            print(f"DEBUG: Start command with parameter: {start_param}")
+
+            # Проверяем, не является ли это QR-регистрацией
+            if start_param.startswith("register_"):
+                await self.handle_qr_registration_start(update, context, start_param)
+                return
 
         # Проверяем, зарегистрирован ли пользователь
         if self.user_manager.user_exists(user_id):
@@ -85,6 +102,41 @@ class GR2Bot:
         )
 
         return REGISTRATION_NAME
+
+    async def handle_qr_registration_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE, start_param: str):
+        """Обрабатывает QR-регистрацию через команду /start"""
+        user_id = str(update.effective_user.id)
+
+        print(f"DEBUG: Handling QR registration start: {start_param}")
+
+        # Парсим параметр start
+        # Формат: register_meetup_id_hash
+        try:
+            parts = start_param.split('_')
+            if len(parts) != 3:
+                await update.message.reply_text("❌ Неверный формат QR-кода")
+                return
+
+            meetup_id = parts[1]
+            hash_code = parts[2]
+
+            print(f"DEBUG: Parsed meetup_id: {meetup_id}, hash: {hash_code}")
+
+        except Exception as e:
+            print(f"DEBUG: Error parsing start parameter: {e}")
+            await update.message.reply_text("❌ Ошибка обработки QR-кода")
+            return
+
+        # Проверяем, что пользователь зарегистрирован в боте
+        if not self.user_manager.user_exists(user_id):
+            await update.message.reply_text(
+                "❌ Для регистрации на митап необходимо сначала зарегистрироваться в боте. "
+                "Используйте команду /start без параметров."
+            )
+            return
+
+        # Обрабатываем регистрацию по QR-коду
+        await self.handle_qr_registration(update, context, meetup_id, hash_code)
 
     async def registration_name(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик ввода имени при регистрации"""
@@ -276,6 +328,157 @@ class GR2Bot:
         else:
             await update.message.reply_text("ℹ️ Статусы митапов уже актуальны.")
 
+    async def qr_start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /qr_start (только для админов)"""
+        user_id = str(update.effective_user.id)
+
+        if not self.user_manager.is_admin(user_id):
+            await update.message.reply_text(
+                message_manager.get_error_message("permission_denied")
+            )
+            return
+
+        # Обновляем статусы митапов перед проверкой
+        self.meetup_manager.update_meetup_statuses()
+
+        # Отладочная информация
+        print(f"DEBUG: Обновлены статусы митапов")
+        print(f"DEBUG: Все митапы: {list(self.meetup_manager.meetups.keys())}")
+
+        # Получаем активные митапы
+        active_meetups = self.qr_registration.get_active_meetups()
+        print(
+            f"DEBUG: QR registration manager вернул {len(active_meetups)} активных митапов")
+
+        if not active_meetups:
+            await update.message.reply_text("❌ Нет активных митапов для QR-регистрации")
+            return
+
+        # Создаём клавиатуру для выбора митапа
+        keyboard = []
+        for meetup in active_meetups:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{meetup['name']} ({meetup['date']})",
+                    callback_data=f"qr_start_{meetup['id']}"
+                )
+            ])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "🎯 Выберите митап для запуска QR-регистрации:",
+            reply_markup=reply_markup
+        )
+
+    async def qr_stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /qr_stop (только для админов)"""
+        user_id = str(update.effective_user.id)
+
+        if not self.user_manager.is_admin(user_id):
+            await update.message.reply_text(
+                message_manager.get_error_message("permission_denied")
+            )
+            return
+
+        # Получаем активные QR-регистрации
+        active_registrations = self.qr_registration.get_all_active_registrations()
+
+        if not active_registrations:
+            await update.message.reply_text("❌ Нет активных QR-регистраций")
+            return
+
+        # Создаём клавиатуру для выбора митапа
+        keyboard = []
+        for registration in active_registrations:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{registration['meetup_name']} ({registration['started_at']})",
+                    callback_data=f"qr_stop_{registration['meetup_id']}"
+                )
+            ])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "🛑 Выберите митап для остановки QR-регистрации:",
+            reply_markup=reply_markup
+        )
+
+    async def qr_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /qr_status (только для админов)"""
+        user_id = str(update.effective_user.id)
+
+        if not self.user_manager.is_admin(user_id):
+            await update.message.reply_text(
+                message_manager.get_error_message("permission_denied")
+            )
+            return
+
+        # Получаем статус всех QR-регистраций
+        active_registrations = self.qr_registration.get_all_active_registrations()
+
+        if not active_registrations:
+            await update.message.reply_text("ℹ️ Нет активных QR-регистраций")
+            return
+
+        status_text = "📊 Статус QR-регистраций:\n\n"
+
+        for registration in active_registrations:
+            status_text += f"🎯 {registration['meetup_name']}\n"
+            status_text += f"📅 Запущена: {registration['started_at']}\n"
+            status_text += f"👥 Зарегистрировано: {registration['total_registrations']}\n"
+            status_text += f"🔄 Последний QR: {registration['last_qr_sent_at']}\n\n"
+
+        await update.message.reply_text(status_text)
+
+    async def debug_meetups_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /debug_meetups (только для админов)"""
+        user_id = str(update.effective_user.id)
+
+        if not self.user_manager.is_admin(user_id):
+            await update.message.reply_text(
+                message_manager.get_error_message("permission_denied")
+            )
+            return
+
+        # Обновляем статусы митапов
+        self.meetup_manager.update_meetup_statuses()
+
+        # Получаем все митапы
+        all_meetups = self.meetup_manager.meetups
+        moscow_now = self.meetup_manager.get_moscow_time()
+
+        debug_text = "🔍 Отладочная информация о митапах:\n\n"
+        debug_text += f"⏰ Текущее время (Москва): {moscow_now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+        if not all_meetups:
+            debug_text += "❌ Митапы не найдены"
+        else:
+            for meetup_id, meetup in all_meetups.items():
+                debug_text += f"🎯 {meetup.get('name', 'Без названия')}\n"
+                debug_text += f"   ID: {meetup_id}\n"
+                debug_text += f"   Статус: {meetup.get('status', 'Не указан')}\n"
+                debug_text += f"   Дата: {meetup.get('date', 'Не указана')}\n"
+                debug_text += f"   Время: {meetup.get('start_time', 'Не указано')} - {meetup.get('end_time', 'Не указано')}\n"
+
+                # Проверяем время митапа
+                try:
+                    if meetup.get('date') and meetup.get('start_time'):
+                        meetup_date = datetime.strptime(
+                            meetup['date'], '%Y-%m-%d').date()
+                        start_time = datetime.strptime(
+                            meetup['start_time'], '%H:%M').time()
+                        meetup_start = datetime.combine(
+                            meetup_date, start_time, tzinfo=self.meetup_manager.moscow_tz)
+
+                        debug_text += f"   Время начала (Москва): {meetup_start.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                        debug_text += f"   Статус должен быть: {'active' if meetup_start <= moscow_now else 'planned'}\n"
+                except Exception as e:
+                    debug_text += f"   Ошибка проверки времени: {e}\n"
+
+                debug_text += "\n"
+
+        await update.message.reply_text(debug_text)
+
     async def users_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /users (только для админов)"""
         user_id = str(update.effective_user.id)
@@ -322,6 +525,12 @@ class GR2Bot:
             await self.execute_meetup_deletion(query, context, meetup_id)
         elif query.data == "cancel_delete":
             await query.edit_message_text("❌ Удаление отменено.")
+        elif query.data.startswith("qr_start_"):
+            meetup_id = query.data.replace("qr_start_", "")
+            await self.start_qr_registration(query, context, meetup_id)
+        elif query.data.startswith("qr_stop_"):
+            meetup_id = query.data.replace("qr_stop_", "")
+            await self.stop_qr_registration(query, context, meetup_id)
         # Добавить другие обработчики по мере необходимости
 
     async def start_meetup_creation(self, query, context):
@@ -429,6 +638,9 @@ class GR2Bot:
             await self.handle_meetup_creation(update, context)
         elif context.user_data.get('editing_meetup'):
             await self.handle_meetup_editing(update, context)
+        else:
+            # Проверяем, не является ли сообщение QR-кодом для регистрации
+            await self.handle_qr_registration(update, context)
         # Если ни одно состояние не активно, игнорируем сообщение
 
     async def handle_meetup_editing(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -665,6 +877,90 @@ class GR2Bot:
         except Exception as e:
             await query.edit_message_text(f"❌ Ошибка удаления митапа: {str(e)}")
 
+    async def start_qr_registration(self, query, context, meetup_id):
+        """Запускает QR-регистрацию для митапа"""
+        user_id = str(query.from_user.id)
+
+        success, message = self.qr_registration.start_registration(
+            meetup_id, user_id)
+
+        if success:
+            await query.edit_message_text(f"✅ {message}")
+        else:
+            await query.edit_message_text(f"❌ {message}")
+
+    async def stop_qr_registration(self, query, context, meetup_id):
+        """Останавливает QR-регистрацию для митапа"""
+        user_id = str(query.from_user.id)
+
+        success, message = self.qr_registration.stop_registration(meetup_id)
+
+        if success:
+            await query.edit_message_text(f"🛑 {message}")
+        else:
+            await query.edit_message_text(f"❌ {message}")
+
+    async def handle_qr_registration(self, update: Update, context: ContextTypes.DEFAULT_TYPE, meetup_id: str = None, hash_code: str = None):
+        """Обрабатывает запросы на регистрацию по QR-коду"""
+        user_id = str(update.effective_user.id)
+
+        # Если параметры не переданы, пытаемся получить из текста сообщения
+        if meetup_id is None or hash_code is None:
+            text = update.message.text.strip()
+
+            # Проверяем формат QR-кода (16-символьный хеш)
+            if len(text) != 16 or not all(c in '0123456789abcdef' for c in text.lower()):
+                # Это не QR-код, игнорируем
+                return
+
+            hash_code = text
+
+            # Ищем активную регистрацию с таким хешем
+            active_registrations = self.qr_registration.get_all_active_registrations()
+
+            for registration in active_registrations:
+                if registration.get('current_qr_hash') == hash_code:
+                    meetup_id = registration['meetup_id']
+                    break
+            else:
+                # QR-код не найден
+                await update.message.reply_text(
+                    "❌ QR-код недействителен или истёк. Попросите новый код у администратора."
+                )
+                return
+
+        # Проверяем, что пользователь зарегистрирован
+        if not self.user_manager.user_exists(user_id):
+            await update.message.reply_text(
+                "❌ Для регистрации на митап необходимо сначала зарегистрироваться в боте. "
+                "Используйте команду /start"
+            )
+            return
+
+        # Обрабатываем регистрацию
+        success, message = self.qr_registration.process_registration_request(
+            meetup_id, hash_code, user_id
+        )
+
+        if success:
+            await update.message.reply_text(f"✅ {message}")
+        else:
+            await update.message.reply_text(f"❌ {message}")
+
+    async def _cleanup_task(self):
+        """Задача для периодической очистки истекших регистраций"""
+        while True:
+            try:
+                # Очищаем истекшие регистрации
+                self.qr_registration.cleanup_expired_registrations()
+
+                # Ждём 5 минут перед следующей очисткой
+                await asyncio.sleep(300)
+
+            except Exception as e:
+                logger.error(f"Ошибка в задаче очистки: {e}")
+                await asyncio.sleep(60)  # Ждём минуту при ошибке
+
     def setup_handlers(self):
         """Настраивает обработчики команд и сообщений"""
         # Основные команды (start handled by ConversationHandler)
@@ -685,6 +981,14 @@ class GR2Bot:
             CommandHandler("users", self.users_command))
         self.application.add_handler(
             CommandHandler("update_meetups", self.update_meetups_command))
+        self.application.add_handler(
+            CommandHandler("qr_start", self.qr_start_command))
+        self.application.add_handler(
+            CommandHandler("qr_stop", self.qr_stop_command))
+        self.application.add_handler(
+            CommandHandler("qr_status", self.qr_status_command))
+        self.application.add_handler(
+            CommandHandler("debug_meetups", self.debug_meetups_command))
 
         # Обработчики кнопок
         self.application.add_handler(
@@ -734,6 +1038,9 @@ class GR2Bot:
             await self.application.initialize()
             await self.application.start()
             await self.application.updater.start_polling()
+
+            # Запускаем задачу очистки истекших регистраций
+            asyncio.create_task(self._cleanup_task())
 
             logger.info("Бот запущен успешно!")
 

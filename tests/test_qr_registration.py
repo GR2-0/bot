@@ -2,16 +2,16 @@
 """
 Тестовый скрипт для проверки QR-регистрации
 """
-from models.user import UserManager
-from models.points import PointsManager
-from models.meetup import MeetupManager
 from utils.qr_registration import QRRegistrationManager
+from models.meetup import MeetupManager
+from models.points import PointsManager
+from models.user import UserManager
 import asyncio
 import sys
 import os
 
 # Добавляем src в путь для импорта модулей
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 async def test_qr_registration():

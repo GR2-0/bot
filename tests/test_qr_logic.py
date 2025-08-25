@@ -2,14 +2,14 @@
 """
 Тест логики QR-регистрации без telegram модуля
 """
-from models.user import UserManager
-from models.points import PointsManager
 from models.meetup import MeetupManager
+from models.points import PointsManager
+from models.user import UserManager
 import sys
 import os
 
 # Добавляем src в путь для импорта модулей
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 def test_qr_logic():

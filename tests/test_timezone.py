@@ -8,7 +8,7 @@ import os
 from datetime import datetime, timezone, timedelta
 
 # Добавляем src в путь для импорта модулей
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 def test_timezone():

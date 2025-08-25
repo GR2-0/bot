@@ -2,12 +2,18 @@
 """
 Простой отладочный скрипт для проверки митапов
 """
-from models.meetup import MeetupManager
 import sys
 import os
 
 # Добавляем src в путь для импорта модулей
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+try:
+    from models.meetup import MeetupManager
+except ImportError:
+    # Fallback for when running from different directory
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+    from models.meetup import MeetupManager
 
 
 def debug_simple():

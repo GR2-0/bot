@@ -211,7 +211,7 @@ class QRRegistrationManager:
 
                 message_text = f"🔄 Новый QR-код для митапа '{registration['meetup_name']}'\n\n"
                 message_text += f"📱 Хеш: `{qr_hash}`\n"
-                message_text += f"🔗 Ссылка: {deep_link}\n\n"
+                # message_text += f"🔗 Ссылка: `{deep_link}`\n\n"
                 message_text += f"⏰ Сгенерирован: {registration['last_qr_sent_at']}\n"
                 message_text += f"👥 Зарегистрировано: {registration['total_registrations']}"
 

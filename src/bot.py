@@ -430,6 +430,19 @@ class GR2Bot:
 
         await update.message.reply_text(status_text)
 
+    async def qr_cleanup_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработчик команды /qr_cleanup (только для админов)"""
+        user_id = str(update.effective_user.id)
+
+        if not self.user_manager.is_admin(user_id):
+            await update.message.reply_text(
+                message_manager.get_error_message("permission_denied")
+            )
+            return
+
+        self.qr_registration.cleanup_expired_registrations()
+        await update.message.reply_text("✅ Очистка истекших регистраций завершена.")
+
     async def users_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /users (только для админов)"""
         user_id = str(update.effective_user.id)
@@ -938,6 +951,8 @@ class GR2Bot:
             CommandHandler("qr_stop", self.qr_stop_command))
         self.application.add_handler(
             CommandHandler("qr_status", self.qr_status_command))
+        self.application.add_handler(
+            CommandHandler("qr_cleanup", self.qr_cleanup_command))
 
         # Обработчики кнопок
         self.application.add_handler(

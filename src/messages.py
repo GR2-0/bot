@@ -93,7 +93,8 @@ class MessageManager:
         help_text += "🔄 QR-регистрация:\n"
         help_text += "/qr_start - Запустить QR-регистрацию\n"
         help_text += "/qr_stop - Остановить QR-регистрацию\n"
-        help_text += "/qr_status - Статус QR-регистраций\n\n"
+        help_text += "/qr_status - Статус QR-регистраций\n"
+        help_text += "/qr_cleanup - Очистить истекшие QR-регистрации\n\n"
 
         help_text += "👥 Управление пользователями:\n"
         help_text += "/users - Список пользователей\n"

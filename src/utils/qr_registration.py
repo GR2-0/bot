@@ -118,10 +118,42 @@ class QRRegistrationManager:
         if 'qr_messages' in registration:
             for msg_data in registration['qr_messages']:
                 try:
+                    # Удаляем Telegram сообщение
+                    bot = Bot(token=config.get_bot_token())
+                    try:
+                        # Используем asyncio.run для синхронного вызова
+                        # асинхронного метода
+                        import asyncio
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(
+                                bot.delete_message(
+                                    chat_id=registration['admin_id'],
+                                    message_id=msg_data['message_id']
+                                )
+                            )
+                            print(
+                                f"Удалено Telegram сообщение с QR-кодом "
+                                f"при остановке: {msg_data['message_id']}"
+                            )
+                        finally:
+                            loop.close()
+                    except Exception as e:
+                        print(
+                            f"Ошибка удаления Telegram сообщения "
+                            f"при остановке: {e}"
+                        )
+                    finally:
+                        bot.close()
+
+                    # Удаляем файл QR-кода
                     if os.path.exists(msg_data['file_path']):
                         os.remove(msg_data['file_path'])
                         print(
-                            f"Удалён файл QR-кода при остановке: {msg_data['file_path']}")
+                            f"Удалён файл QR-кода при остановке: "
+                            f"{msg_data['file_path']}"
+                        )
                 except Exception as e:
                     print(f"Ошибка удаления файла QR-кода: {e}")
 
@@ -267,6 +299,20 @@ class QRRegistrationManager:
         # Удаляем старые сообщения и файлы
         for msg_data in messages_to_remove:
             try:
+                # Удаляем Telegram сообщение
+                bot = Bot(token=config.get_bot_token())
+                try:
+                    await bot.delete_message(
+                        chat_id=registration['admin_id'],
+                        message_id=msg_data['message_id']
+                    )
+                    print(
+                        f"Удалено Telegram сообщение с QR-кодом: {msg_data['message_id']}")
+                except Exception as e:
+                    print(f"Ошибка удаления Telegram сообщения: {e}")
+                finally:
+                    await bot.close()
+
                 # Удаляем файл QR-кода
                 if os.path.exists(msg_data['file_path']):
                     os.remove(msg_data['file_path'])
@@ -292,10 +338,43 @@ class QRRegistrationManager:
             if 'qr_messages' in registration:
                 for msg_data in registration['qr_messages']:
                     try:
+                        # Удаляем Telegram сообщение
+                        bot = Bot(token=config.get_bot_token())
+                        try:
+                            # Используем asyncio.run для синхронного вызова
+                            # асинхронного метода
+                            import asyncio
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            try:
+                                loop.run_until_complete(
+                                    bot.delete_message(
+                                        chat_id=registration['admin_id'],
+                                        message_id=msg_data['message_id']
+                                    )
+                                )
+                                print(
+                                    f"Удалено Telegram сообщение с QR-кодом "
+                                    f"при автоматической остановке: "
+                                    f"{msg_data['message_id']}"
+                                )
+                            finally:
+                                loop.close()
+                        except Exception as e:
+                            print(
+                                f"Ошибка удаления Telegram сообщения "
+                                f"при автоматической остановке: {e}"
+                            )
+                        finally:
+                            bot.close()
+
+                        # Удаляем файл QR-кода
                         if os.path.exists(msg_data['file_path']):
                             os.remove(msg_data['file_path'])
                             print(
-                                f"Удалён файл QR-кода при автоматической остановке: {msg_data['file_path']}")
+                                f"Удалён файл QR-кода при автоматической остановке: "
+                                f"{msg_data['file_path']}"
+                            )
                     except Exception as e:
                         print(f"Ошибка удаления файла QR-кода: {e}")
 
@@ -308,6 +387,17 @@ class QRRegistrationManager:
 
             # Очищаем данные
             del self.active_registrations[meetup_id]
+
+    async def cleanup_old_qr_messages(self, meetup_id: str):
+        """Вручную очищает старые QR-сообщения для митапа"""
+        if meetup_id not in self.active_registrations:
+            return False, "QR-регистрация не активна для этого митапа"
+
+        try:
+            await self._cleanup_old_qr_messages(meetup_id)
+            return True, "Старые QR-сообщения очищены"
+        except Exception as e:
+            return False, f"Ошибка очистки: {str(e)}"
 
     def process_registration_request(self, meetup_id: str, hash_code: str, user_id: str) -> Tuple[bool, str]:
         """Обрабатывает запрос на регистрацию по QR-коду"""

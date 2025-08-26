@@ -94,7 +94,8 @@ class QRRegistrationManager:
             'started_at': self.get_moscow_datetime(),
             'current_qr_hash': None,
             'qr_generation_active': True,
-            'total_registrations': 0,
+            # Текущее кол-во участников
+            'total_registrations': len(meetup.get('attendees', [])),
             'last_qr_sent_at': None
         }
 
@@ -209,11 +210,16 @@ class QRRegistrationManager:
             try:
                 bot = Bot(token=config.get_bot_token())
 
+                # Получаем актуальное количество зарегистрированных участников из meetup данных
+                meetup = self.meetup_manager.get_meetup(meetup_id)
+                actual_attendees_count = len(
+                    meetup.get('attendees', [])) if meetup else 0
+
                 message_text = f"🔄 Новый QR-код для митапа '{registration['meetup_name']}'\n\n"
                 message_text += f"📱 Хеш: `{qr_hash}`\n"
                 # message_text += f"🔗 Ссылка: `{deep_link}`\n\n"
                 message_text += f"⏰ Сгенерирован: {registration['last_qr_sent_at']}\n"
-                message_text += f"👥 Зарегистрировано: {registration['total_registrations']}"
+                message_text += f"👥 Зарегистрировано: {actual_attendees_count}"
 
                 # Отправляем QR-код и сохраняем message_id для последующего удаления
                 sent_message = await bot.send_photo(
@@ -346,21 +352,34 @@ class QRRegistrationManager:
         if meetup_id not in self.active_registrations:
             return None
 
-        return self.active_registrations[meetup_id].copy()
+        # Создаем копию данных регистрации
+        status = self.active_registrations[meetup_id].copy()
+
+        # Обновляем количество зарегистрированных участников актуальными данными
+        meetup = self.meetup_manager.get_meetup(meetup_id)
+        if meetup:
+            status['total_registrations'] = len(meetup.get('attendees', []))
+
+        return status
 
     def get_all_active_registrations(self) -> List[Dict]:
         """Возвращает все активные QR-регистрации"""
-        return [
-            {
+        result = []
+        for meetup_id, data in self.active_registrations.items():
+            # Получаем актуальное количество зарегистрированных участников из meetup данных
+            meetup = self.meetup_manager.get_meetup(meetup_id)
+            actual_attendees_count = len(
+                meetup.get('attendees', [])) if meetup else 0
+
+            result.append({
                 'meetup_id': meetup_id,
                 'meetup_name': data['meetup_name'],
                 'admin_id': data['admin_id'],
                 'started_at': data['started_at'],
-                'total_registrations': data['total_registrations'],
+                'total_registrations': actual_attendees_count,
                 'last_qr_sent_at': data['last_qr_sent_at']
-            }
-            for meetup_id, data in self.active_registrations.items()
-        ]
+            })
+        return result
 
     def cleanup_expired_registrations(self):
         """Очищает истекшие регистрации"""

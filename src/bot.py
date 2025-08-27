@@ -86,22 +86,28 @@ class GR2Bot:
             )
             return
 
-        # Проверяем, состоит ли пользователь в группе
-        if not await self.group_checker.is_user_in_community(user_id):
-            await update.message.reply_text(
-                message_manager.get_registration_message("not_in_group")
-            )
-            return
+        # # Проверяем, состоит ли пользователь в группе
+        # if not await self.group_checker.is_user_in_community(user_id):
+        #     await update.message.reply_text(
+        #         message_manager.get_registration_message("not_in_group")
+        #     )
+        #     return
 
-        # Начинаем процесс регистрации
-        context.user_data['registration_user_id'] = user_id
-        context.user_data['registration_username'] = username
+        # # Начинаем процесс регистрации
+        # context.user_data['registration_user_id'] = user_id
+        # context.user_data['registration_username'] = username
 
+        # await update.message.reply_text(
+        #     message_manager.get_registration_message("ask_name")
+        # )
+
+        # return REGISTRATION_NAME
+
+        # Регистрация отключена
         await update.message.reply_text(
-            message_manager.get_registration_message("ask_name")
+            "Не спеши, я напишу тебе про новые фишки ГР2.0👌"
         )
-
-        return REGISTRATION_NAME
+        return
 
     async def handle_qr_registration_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE, start_param: str):
         """Обрабатывает QR-регистрацию через команду /start"""
@@ -127,13 +133,14 @@ class GR2Bot:
             await update.message.reply_text("❌ Ошибка обработки QR-кода")
             return
 
-        # Проверяем, что пользователь зарегистрирован в боте
-        if not self.user_manager.user_exists(user_id):
-            await update.message.reply_text(
-                "❌ Для регистрации на митап необходимо сначала зарегистрироваться в боте. "
-                "Используйте команду /start без параметров."
-            )
-            return
+        # # Проверяем, что пользователь зарегистрирован в боте
+        # if not self.user_manager.user_exists(user_id):
+        #     await update.message.reply_text(
+        #         "❌ Для регистрации на митап необходимо сначала "
+        #         "зарегистрироваться в боте. "
+        #         "Используйте команду /start без параметров."
+        #     )
+        #     return
 
         # Обрабатываем регистрацию по QR-коду
         await self.handle_qr_registration(update, context, meetup_id, hash_code)
@@ -893,13 +900,13 @@ class GR2Bot:
                 )
                 return
 
-        # Проверяем, что пользователь зарегистрирован
-        if not self.user_manager.user_exists(user_id):
-            await update.message.reply_text(
-                "❌ Для регистрации на митап необходимо сначала зарегистрироваться в боте. "
-                "Используйте команду /start"
-            )
-            return
+        # # Проверяем, что пользователь зарегистрирован
+        # if not self.user_manager.user_exists(user_id):
+        #     await update.message.reply_text(
+        #         "❌ Для регистрации на митап необходимо сначала зарегистрироваться в боте. "
+        #         "Используйте команду /start"
+        #     )
+        #     return
 
         # Обрабатываем регистрацию
         success, message = self.qr_registration.process_registration_request(
@@ -907,9 +914,9 @@ class GR2Bot:
         )
 
         if success:
-            await update.message.reply_text(f"✅ {message}")
+            await update.message.reply_text(f"{message}")
         else:
-            await update.message.reply_text(f"❌ {message}")
+            await update.message.reply_text(f"{message}")
 
     async def _cleanup_task(self):
         """Задача для периодической очистки истекших регистраций"""
@@ -928,11 +935,11 @@ class GR2Bot:
     def setup_handlers(self):
         """Настраивает обработчики команд и сообщений"""
         # Основные команды (start handled by ConversationHandler)
-        self.application.add_handler(CommandHandler("help", self.help_command))
-        self.application.add_handler(
-            CommandHandler("profile", self.profile_command))
-        self.application.add_handler(
-            CommandHandler("points", self.points_command))
+        # self.application.add_handler(CommandHandler("help", self.help_command))
+        # self.application.add_handler(
+        #     CommandHandler("profile", self.profile_command))
+        # self.application.add_handler(
+        #     CommandHandler("points", self.points_command))
 
         # Админские команды
         self.application.add_handler(
@@ -959,16 +966,19 @@ class GR2Bot:
             CallbackQueryHandler(self.button_callback))
 
         # Conversation handler для регистрации
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler("start", self.start)],
-            states={
-                REGISTRATION_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.registration_name)],
-                REGISTRATION_INFO: [MessageHandler(
-                    filters.TEXT & ~filters.COMMAND, self.registration_info)]
-            },
-            fallbacks=[]
-        )
-        self.application.add_handler(conv_handler)
+        # conv_handler = ConversationHandler(
+        #     entry_points=[CommandHandler("start", self.start)],
+        #     states={
+        #         REGISTRATION_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.registration_name)],
+        #         REGISTRATION_INFO: [MessageHandler(
+        #         filters.TEXT & ~filters.COMMAND, self.registration_info)]
+        #     },
+        #     fallbacks=[]
+        # )
+        # self.application.add_handler(conv_handler)
+
+        # Простой обработчик команды /start для QR-кодов (без регистрации)
+        self.application.add_handler(CommandHandler("start", self.start))
 
         # Обработчик для создания и редактирования митапов (перехватывает все текстовые сообщения)
         self.application.add_handler(

@@ -247,10 +247,10 @@ class QRRegistrationManager:
                 actual_attendees_count = len(
                     meetup.get('attendees', [])) if meetup else 0
 
-                message_text = f"🔄 Новый QR-код для митапа '{registration['meetup_name']}'\n\n"
-                message_text += f"📱 Хеш: `{qr_hash}`\n"
+                message_text = f"🔄 QR-код для митапа '{registration['meetup_name']}'\n\n"
+                # message_text += f"📱 Хеш: `{qr_hash}`\n"
                 # message_text += f"🔗 Ссылка: `{deep_link}`\n\n"
-                message_text += f"⏰ Сгенерирован: {registration['last_qr_sent_at']}\n"
+                # message_text += f"⏰ Сгенерирован: {registration['last_qr_sent_at']}\n"
                 message_text += f"👥 Зарегистрировано: {actual_attendees_count}"
 
                 # Отправляем QR-код и сохраняем message_id для последующего удаления
@@ -408,7 +408,7 @@ class QRRegistrationManager:
 
         # Проверяем, совпадает ли хеш
         if registration['current_qr_hash'] != hash_code:
-            return False, "Неверный QR-код"
+            return False, "QR-код просрочен"
 
         # Проверяем, не зарегистрирован ли уже пользователь
         meetup = self.meetup_manager.get_meetup(meetup_id)
@@ -417,7 +417,7 @@ class QRRegistrationManager:
 
         attendees = meetup.get('attendees', [])
         if any(att['user_id'] == user_id for att in attendees):
-            return False, "Вы уже зарегистрированы на этот митап"
+            return False, "Расслабься, ты уже с нами🫶"
 
         try:
             # Добавляем пользователя на митап
@@ -432,7 +432,7 @@ class QRRegistrationManager:
             # Обновляем статистику
             registration['total_registrations'] += 1
 
-            return True, f"Успешная регистрация! Начислено {points} поинтов за посещение митапа."
+            return True, f"🚀 Чекин засчитан.\nТы в клубе ✨"
 
         except Exception as e:
             return False, f"Ошибка регистрации: {str(e)}"

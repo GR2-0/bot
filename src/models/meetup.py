@@ -186,6 +186,14 @@ class MeetupManager:
         ]
         self.save_meetups()
 
+    def get_meetup_attendees(self, meetup_id: str) -> List[str]:
+        """Возвращает список ID участников митапа"""
+        if meetup_id not in self.meetups:
+            return []
+
+        attendees = self.meetups[meetup_id].get('attendees', [])
+        return [att['user_id'] for att in attendees]
+
     def add_presentation(self, meetup_id: str, presentation_data: Dict):
         """Добавляет доклад к митапу"""
         if meetup_id not in self.meetups:

@@ -1,3 +1,50 @@
-node_modules
+# Приватные данные и конфигурация
+data/private/
+# Служебные файлы Obsidian
+.obsidian/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Environment variables
 .env
-data
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
